@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snake Game Skin Shop</title>
+
+<style>
+body{
+    margin:0;
+    background:#0d0f14;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    font-family:Arial;
+    color:white;
+}
+
+.container{text-align:center;}
+
+canvas{
+    background:#151922;
+    border:2px solid #2a2f3a;
+    box-shadow:0 0 20px rgba(120,120,120,0.2);
+}
+
+button{
+    padding:8px 12px;
+    margin:5px;
+    border:none;
+    border-radius:6px;
+    background:#222;
+    color:white;
+    cursor:pointer;
+}
+button:active{
+    background:#39ff14;
+    color:black;
+}
+
+/* SHOP MENU */
+#shop{
+    position:absolute;
+    width:100%;
+    height:100%;
+    background:#0d0f14;
+    display:none;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+}
+
+.skinBtn{
+    width:200px;
+    margin:6px;
+}
+</style>
+</head>
+
+<body>
+
+<!-- SHOP -->
+<div id="shop">
+    <h2>🛍 Skin Shop</h2>
+    <button class="skinBtn" onclick="setSkin('classic')">⚪ Classic</button>
+    <button class="skinBtn" onclick="setSkin('fire')">🔥 Fire</button>
+    <button class="skinBtn" onclick="setSkin('ice')">❄ Ice</button>
+    <button class="skinBtn" onclick="setSkin('neon')">🟢 Neon</button>
+    <button class="skinBtn" onclick="setSkin('rainbow')">🌈 Rainbow</button>
+    <button onclick="closeShop()">Close</button>
+</div>
+
+<div class="container">
+
+<div>
+Score: <span id="score">0</span> |
+🏆 High: <span id="high">0</span>
+</div>
+
+<canvas id="game" width="400" height="400"></canvas>
+
+<div>
+<button onclick="togglePause()">⏸ Pause</button>
+<button onclick="restartGame()">🔁 Restart</button>
+<button onclick="openShop()">🛍 Shop</button>
+</div>
+
+</div>
+
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+
+const box=20;
+const max=400;
+
+let snake, dir, food, score, game, speed, paused=false;
+
+let high=localStorage.getItem("highScore")||0;
+document.getElementById("high").innerText=high;
+
+/* SKIN SYSTEM */
+let skin = localStorage.getItem("skin") || "classic";
+
+function setSkin(s){
+    skin=s;
+    localStorage.setItem("skin",s);
+    closeShop();
+}
+
+function getColor(i){
+    if(skin==="classic") return i===0?"#bfbfbf":"#7a7a7a";
+    if(skin==="fire") return i===0?"#ff4d4d":"#aa0000";
+    if(skin==="ice") return i===0?"#66ccff":"#004466";
+    if(skin==="neon") return i===0?"#39ff14":"#1a7f0a";
+    if(skin==="rainbow") return `hsl(${i*20},100%,50%)`;
+}
+
+/* SOUND */
+function sound(f,d){
+    let a=new (window.AudioContext||window.webkitAudioContext)();
+    let o=a.createOscillator();
+    o.type="square";
+    o.frequency.value=f;
+    o.connect(a.destination);
+    o.start();
+    setTimeout(()=>o.stop(),d);
+}
+
+function init(){
+    snake=[{x:200,y:200}];
+    dir="RIGHT";
+    food=randomFood();
+    score=0;
+    speed=120;
+    paused=false;
+
+    document.getElementById("score").innerText=0;
+
+    clearInterval(game);
+    game=setInterval(loop,speed);
+}
+
+/* CONTROLS */
+document.addEventListener("keydown",e=>{
+    if(e.key==="ArrowLeft" && dir!=="RIGHT") dir="LEFT";
+    if(e.key==="ArrowRight" && dir!=="LEFT") dir="RIGHT";
+    if(e.key==="ArrowUp" && dir!=="DOWN") dir="UP";
+    if(e.key==="ArrowDown" && dir!=="UP") dir="DOWN";
+});
+
+function randomFood(){
+    return{
+        x:Math.floor(Math.random()*20)*box,
+        y:Math.floor(Math.random()*20)*box
+    };
+}
+
+/* PAUSE */
+function togglePause(){
+    if(paused){
+        game=setInterval(loop,speed);
+        paused=false;
+    }else{
+        clearInterval(game);
+        paused=true;
+    }
+}
+
+/* RESTART */
+function restartGame(){
+    init();
+}
+
+/* SHOP */
+function openShop(){
+    document.getElementById("shop").style.display="flex";
+}
+function closeShop(){
+    document.getElementById("shop").style.display="none";
+}
+
+/* GAME LOOP */
+function loop(){
+
+    let head={x:snake[0].x,y:snake[0].y};
+
+    if(dir==="LEFT")head.x-=box;
+    if(dir==="RIGHT")head.x+=box;
+    if(dir==="UP")head.y-=box;
+    if(dir==="DOWN")head.y+=box;
+
+    if(head.x<0)head.x=max-box;
+    else if(head.x>=max)head.x=0;
+
+    if(head.y<0)head.y=max-box;
+    else if(head.y>=max)head.y=0;
+
+    if(head.x===food.x && head.y===food.y){
+        score++;
+        document.getElementById("score").innerText=score;
+        food=randomFood();
+        sound(600,100);
+    }else{
+        snake.pop();
+    }
+
+    for(let i=0;i<snake.length;i++){
+        if(head.x===snake[i].x && head.y===snake[i].y){
+            sound(150,400);
+            clearInterval(game);
+
+            if(score>high){
+                localStorage.setItem("highScore",score);
+            }
+
+            alert("Game Over! Score: "+score);
+        }
+    }
+
+    snake.unshift(head);
+    draw();
+}
+
+/* DRAW */
+function draw(){
+
+    for(let i=0;i<20;i++){
+        for(let j=0;j<20;j++){
+            ctx.fillStyle=(i+j)%2?"#10131b":"#141824";
+            ctx.fillRect(i*box,j*box,box,box);
+        }
+    }
+
+    for(let i=0;i<snake.length;i++){
+        ctx.fillStyle=getColor(i);
+        ctx.strokeStyle="#000";
+        ctx.fillRect(snake[i].x,snake[i].y,box,box);
+        ctx.strokeRect(snake[i].x,snake[i].y,box,box);
+    }
+
+    ctx.fillStyle="#39ff14";
+    ctx.fillRect(food.x,food.y,box,box);
+}
+
+init();
+</script>
+
+</body>
+</html>
